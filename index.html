@@ -282,6 +282,12 @@
         // Initial grid calculation
         updateGridDimensions();
 
+        // Keep grid dimensions synced to actual container size changes
+        const containerResizeObserver = new ResizeObserver(() => {
+            updateGridDimensions();
+        });
+        containerResizeObserver.observe(container);
+
         // Resize handle drag handlers
         resizeHandle.addEventListener('mousedown', (e) => {
             isDragging = true;

@@ -38,13 +38,33 @@
         }
 
         #gameContainer {
-            width: 98vw;
-            height: 98vh;
+            width: 800px;
+            height: 600px;
+            min-width: 400px;
+            min-height: 300px;
+            max-width: 95vw;
+            max-height: 90vh;
             margin: 0 auto;
             position: relative;
             border: 2px solid black;
             overflow: hidden;
             background: white;
+            resize: none;
+        }
+
+        #resizeHandle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 0%, transparent 50%, black 50%, black 100%);
+            z-index: 1000;
+        }
+
+        #resizeHandle:hover {
+            background: linear-gradient(135deg, transparent 0%, transparent 50%, #333 50%, #333 100%);
         }
 
         #textDisplay {
@@ -59,7 +79,9 @@
         }
 
         #scoreContainer {
-            width: 98vw;
+            width: 800px;
+            min-width: 400px;
+            max-width: 95vw;
             height: calc(2vh - 2px);
             margin: 0 auto;
             border: 2px solid black;
@@ -74,7 +96,9 @@
         }
 
         #divider {
-            width: 98vw;
+            width: 800px;
+            min-width: 400px;
+            max-width: 95vw;
             height: 2px;
             margin: 0 auto;
             background: black;
@@ -104,6 +128,7 @@
 
     <div id="gameContainer">
         <div id="textDisplay"></div>
+        <div id="resizeHandle"></div>
     </div>
     <div id="divider"></div>
     <div id="scoreContainer">
@@ -148,12 +173,56 @@
             const layoutTimeEl = document.getElementById('layoutTime');
             const textHeightEl = document.getElementById('textHeight');
             const container = document.getElementById('gameContainer');
+            const resizeHandle = document.getElementById('resizeHandle');
+            const scoreContainer = document.getElementById('scoreContainer');
+            const divider = document.getElementById('divider');
+
+            // Dynamic layout state
+            let isDragging = false;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            let containerStartWidth = 0;
+            let containerStartHeight = 0;
+
+            // Dynamic grid dimensions (calculated based on container size)
+            let ROWS = 25;
+            let COLS = 80;
+
+            // Calculate grid dimensions from container size
+            function updateGridDimensions() {
+                const charWidth = 9.6; // Approximate width of monospace char at 12px
+                const charHeight = 18; // Line height
+
+                COLS = Math.floor((container.clientWidth - 20) / charWidth);
+                ROWS = Math.floor((container.clientHeight - 20) / charHeight);
+
+                // Ensure minimum dimensions
+                COLS = Math.max(40, COLS);
+                ROWS = Math.max(15, ROWS);
+
+                // Reset game positions to be within new bounds
+                if (game.ballPos.col >= COLS - 2) {
+                    game.ballPos.col = Math.floor(COLS / 2);
+                }
+                if (game.ballPos.row >= ROWS) {
+                    game.ballPos.row = Math.floor(ROWS / 2);
+                }
+                if (game.paddlePos.col >= COLS - game.paddleWidth - 1) {
+                    game.paddlePos.col = Math.max(1, COLS - game.paddleWidth - 1);
+                }
+                if (game.paddlePos.row >= ROWS - 1) {
+                    game.paddlePos.row = ROWS - 5;
+                }
+            }
+
+            // Initial grid calculation
+            updateGridDimensions();
 
             // Game state
             const game = {
                 bounces: 0,
-                ballPos: { row: 5, col: 40 },
-                paddlePos: { row: 20, col: 35 },
+                ballPos: { row: 5, col: Math.floor(COLS / 2) },
+                paddlePos: { row: ROWS - 5, col: Math.floor(COLS / 2) - 5 },
                 ballVel: { row: 1, col: 1 },
                 paddleWidth: 10,
                 keys: { left: false, right: false },
@@ -163,8 +232,49 @@
                 lastLayoutTime: 0
             };
 
-            const ROWS = 25;
-            const COLS = 80;
+            // Resize handle drag handlers
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                containerStartWidth = container.clientWidth;
+                containerStartHeight = container.clientHeight;
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const deltaX = e.clientX - dragStartX;
+                const deltaY = e.clientY - dragStartY;
+
+                let newWidth = containerStartWidth + deltaX;
+                let newHeight = containerStartHeight + deltaY;
+
+                // Apply constraints
+                newWidth = Math.max(400, Math.min(window.innerWidth * 0.95, newWidth));
+                newHeight = Math.max(300, Math.min(window.innerHeight * 0.90, newHeight));
+
+                // Update container size
+                container.style.width = newWidth + 'px';
+                container.style.height = newHeight + 'px';
+
+                // Update related elements
+                scoreContainer.style.width = newWidth + 'px';
+                divider.style.width = newWidth + 'px';
+
+                // Recalculate grid dimensions using Pretext principles
+                updateGridDimensions();
+
+                e.preventDefault();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                }
+            });
 
             // Keyboard input
             document.addEventListener('keydown', (e) => {
@@ -259,7 +369,7 @@
 
                     // Ball falls below - reset
                     if (game.ballPos.row >= ROWS) {
-                        game.ballPos = { row: 5, col: 40 };
+                        game.ballPos = { row: 5, col: Math.floor(COLS / 2) };
                         game.ballVel = { row: 1, col: 1 };
                     }
                 }

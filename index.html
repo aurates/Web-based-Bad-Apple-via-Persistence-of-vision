@@ -81,6 +81,7 @@
             cursor: nwse-resize;
             background: linear-gradient(135deg, transparent 0%, transparent 50%, black 50%, black 100%);
             z-index: 1000;
+            touch-action: none;
         }
 
         #resizeHandle:hover {
@@ -90,11 +91,11 @@
         #textDisplay {
             width: 100%;
             height: 100%;
-            padding: 10px;
+            padding: 0;
             font-family: monospace;
             font-size: 12px;
             line-height: 1.5;
-            white-space: pre-wrap;
+            white-space: pre;
             overflow: hidden;
         }
 
@@ -237,14 +238,32 @@
         // Dynamic grid dimensions (calculated based on container size)
         let ROWS = 25;
         let COLS = 80;
+        const textMeasureCanvas = document.createElement('canvas');
+        const textMeasureContext = textMeasureCanvas.getContext('2d');
+
+        function getCharacterMetrics() {
+            const textStyles = window.getComputedStyle(textDisplay);
+            const font = textStyles.font || `${textStyles.fontSize} ${textStyles.fontFamily}`;
+            if (textMeasureContext) {
+                textMeasureContext.font = font;
+            }
+
+            const measuredCharWidth = textMeasureContext ? textMeasureContext.measureText('■').width : 9.6;
+            const lineHeight = parseFloat(textStyles.lineHeight);
+            const fallbackLineHeight = parseFloat(textStyles.fontSize) * 1.5;
+
+            return {
+                charWidth: Math.max(1, measuredCharWidth),
+                charHeight: Math.max(1, Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight)
+            };
+        }
 
         // Calculate grid dimensions from container size
         function updateGridDimensions() {
-            const charWidth = 9.6; // Approximate width of monospace char at 12px
-            const charHeight = 18; // Line height
+            const { charWidth, charHeight } = getCharacterMetrics();
 
-            COLS = Math.floor((container.clientWidth - 20) / charWidth);
-            ROWS = Math.floor((container.clientHeight - 20) / charHeight);
+            COLS = Math.floor(container.clientWidth / charWidth);
+            ROWS = Math.floor(container.clientHeight / charHeight);
 
             // Ensure minimum dimensions
             COLS = Math.max(40, COLS);
@@ -295,18 +314,22 @@
         containerResizeObserver.observe(container);
 
         // Resize handle drag handlers
-        resizeHandle.addEventListener('mousedown', (e) => {
+        let activePointerId = null;
+
+        resizeHandle.addEventListener('pointerdown', (e) => {
             isDragging = true;
+            activePointerId = e.pointerId;
             dragStartX = e.clientX;
             dragStartY = e.clientY;
             containerStartWidth = container.clientWidth;
             containerStartHeight = container.clientHeight;
+            resizeHandle.setPointerCapture(e.pointerId);
             e.preventDefault();
             e.stopPropagation();
         });
 
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
+        document.addEventListener('pointermove', (e) => {
+            if (!isDragging || e.pointerId !== activePointerId) return;
 
             const deltaX = e.clientX - dragStartX;
             const deltaY = e.clientY - dragStartY;
@@ -328,11 +351,19 @@
             e.preventDefault();
         });
 
-        document.addEventListener('mouseup', () => {
+        const stopDrag = (e) => {
+            if (activePointerId !== null && e.pointerId !== activePointerId) return;
             if (isDragging) {
+                if (activePointerId !== null && resizeHandle.hasPointerCapture(activePointerId)) {
+                    resizeHandle.releasePointerCapture(activePointerId);
+                }
                 isDragging = false;
+                activePointerId = null;
             }
-        });
+        };
+
+        document.addEventListener('pointerup', stopDrag);
+        document.addEventListener('pointercancel', stopDrag);
 
         // Keyboard input
         document.addEventListener('keydown', (e) => {

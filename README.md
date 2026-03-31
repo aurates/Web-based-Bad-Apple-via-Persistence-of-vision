@@ -45,12 +45,18 @@ npm run preview
 - **Right Arrow (→)**: Move paddle right
 - **Objective**: Bounce the ball ● back up using the paddle ━
 
+## Mobile Device Support
+- **Desktop browsers**: Full support, game starts immediately
+- **Mobile devices with keyboard**: Supported! Press any arrow key or click "I Have a Keyboard - Continue" button to play
+- **Mobile devices without keyboard**: Not recommended (touch controls not available)
+- The game automatically detects arrow key presses and enables gameplay on mobile devices with attached keyboards
+
 ## Technical Details
 
 - **Layout**: 90% game area, 10% metrics display
 - **Characters**: U+25A0 (■) background, U+25CF (●) ball, ━ paddle, ▓ walls
 - **Performance**: 60fps with requestAnimationFrame
-- **Mobile**: PC browsers only (shows warning on mobile)
+- **Mobile Support**: Desktop browsers recommended, mobile devices with attached keyboards supported
 
 ## License
 See LICENSE file for details.

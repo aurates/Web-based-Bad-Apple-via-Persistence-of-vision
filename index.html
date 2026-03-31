@@ -265,9 +265,6 @@
             }
         }
 
-        // Initial grid calculation
-        updateGridDimensions();
-
         // Game state
         const game = {
             bounces: 0,
@@ -281,6 +278,9 @@
             lastPrepareTime: 0,
             lastLayoutTime: 0
         };
+
+        // Initial grid calculation
+        updateGridDimensions();
 
         // Resize handle drag handlers
         resizeHandle.addEventListener('mousedown', (e) => {

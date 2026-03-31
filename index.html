@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POV Breakout Demo</title>
+    <title>POV Breakout - Pretext Demo</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +18,7 @@
             font-family: monospace;
             background: white;
             color: black;
+            line-height: 1;
         }
 
         #mobileWarning {
@@ -43,13 +44,20 @@
             margin: 0 auto;
             position: relative;
             border: 2px solid black;
+            overflow: hidden;
         }
 
-        #gameCanvas {
-            display: block;
+        #gameDisplay {
             width: 100%;
             height: 100%;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1;
+            white-space: pre;
             background: white;
+            color: black;
+            overflow: hidden;
+            padding: 0;
         }
 
         #scoreContainer {
@@ -80,7 +88,7 @@
     </div>
 
     <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
+        <div id="gameDisplay"></div>
     </div>
     <div id="divider"></div>
     <div id="scoreContainer">
@@ -101,51 +109,39 @@
             document.getElementById('divider').style.display = 'none';
             document.getElementById('scoreContainer').style.display = 'none';
         } else {
-            // Game implementation
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d', { alpha: false });
+            // PRETEXT DEMO - Text-based rendering for Persistence of Vision
+            const display = document.getElementById('gameDisplay');
             const bounceCountEl = document.getElementById('bounceCount');
 
-            // Set canvas resolution
-            function resizeCanvas() {
-                const container = document.getElementById('gameContainer');
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
-            }
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
+            // Calculate grid dimensions based on container
+            const container = document.getElementById('gameContainer');
+            const CHAR_WIDTH = 8;  // Approximate character width
+            const CHAR_HEIGHT = 12; // Approximate character height
+
+            const COLS = Math.floor(container.clientWidth / CHAR_WIDTH);
+            const ROWS = Math.floor(container.clientHeight / CHAR_HEIGHT);
 
             // Game state
             const game = {
                 paddle: {
-                    x: 0,
-                    y: 0,
-                    width: 100,
-                    height: 15,
-                    speed: 8
+                    x: Math.floor(COLS / 2) - 5,
+                    y: ROWS - 3,
+                    width: 10,
+                    speed: 1
                 },
                 ball: {
-                    x: 0,
-                    y: 0,
-                    radius: 12,
-                    dx: 4,
-                    dy: -4,
-                    speed: 4
+                    x: Math.floor(COLS / 2),
+                    y: Math.floor(ROWS / 2),
+                    dx: 1,
+                    dy: -1
                 },
                 bounces: 0,
                 keys: {
                     left: false,
                     right: false
-                }
+                },
+                frame: 0
             };
-
-            // Initialize positions
-            function init() {
-                game.paddle.x = canvas.width / 2 - game.paddle.width / 2;
-                game.paddle.y = canvas.height - game.paddle.height - 20;
-                game.ball.x = canvas.width / 2;
-                game.ball.y = canvas.height / 2;
-            }
 
             // Keyboard input
             document.addEventListener('keydown', (e) => {
@@ -158,86 +154,112 @@
                 if (e.key === 'ArrowRight') game.keys.right = false;
             });
 
+            // Create empty grid
+            function createGrid() {
+                const grid = [];
+                for (let y = 0; y < ROWS; y++) {
+                    const row = [];
+                    for (let x = 0; x < COLS; x++) {
+                        row.push('■');  // U+25A0 background
+                    }
+                    grid.push(row);
+                }
+                return grid;
+            }
+
             // Update game state
             function update() {
+                game.frame++;
+
                 // Move paddle
                 if (game.keys.left && game.paddle.x > 0) {
                     game.paddle.x -= game.paddle.speed;
                 }
-                if (game.keys.right && game.paddle.x < canvas.width - game.paddle.width) {
+                if (game.keys.right && game.paddle.x < COLS - game.paddle.width) {
                     game.paddle.x += game.paddle.speed;
                 }
 
-                // Move ball
-                game.ball.x += game.ball.dx;
-                game.ball.y += game.ball.dy;
+                // Move ball (every other frame for better visibility)
+                if (game.frame % 2 === 0) {
+                    game.ball.x += game.ball.dx;
+                    game.ball.y += game.ball.dy;
 
-                // Wall collision - left and right
-                if (game.ball.x - game.ball.radius < 0 || game.ball.x + game.ball.radius > canvas.width) {
-                    game.ball.dx = -game.ball.dx;
-                }
+                    // Wall collision - left and right
+                    if (game.ball.x <= 0 || game.ball.x >= COLS - 1) {
+                        game.ball.dx = -game.ball.dx;
+                        game.ball.x = Math.max(0, Math.min(COLS - 1, game.ball.x));
+                    }
 
-                // Wall collision - top
-                if (game.ball.y - game.ball.radius < 0) {
-                    game.ball.dy = -game.ball.dy;
-                }
+                    // Wall collision - top
+                    if (game.ball.y <= 0) {
+                        game.ball.dy = -game.ball.dy;
+                        game.ball.y = 0;
+                    }
 
-                // Paddle collision
-                if (game.ball.y + game.ball.radius >= game.paddle.y &&
-                    game.ball.y + game.ball.radius <= game.paddle.y + game.paddle.height &&
-                    game.ball.x >= game.paddle.x &&
-                    game.ball.x <= game.paddle.x + game.paddle.width &&
-                    game.ball.dy > 0) {
+                    // Paddle collision
+                    const paddleY = game.paddle.y;
+                    if (game.ball.y >= paddleY - 1 && game.ball.y <= paddleY &&
+                        game.ball.x >= game.paddle.x &&
+                        game.ball.x < game.paddle.x + game.paddle.width &&
+                        game.ball.dy > 0) {
 
-                    // Calculate bounce angle based on hit position
-                    const hitPos = (game.ball.x - (game.paddle.x + game.paddle.width / 2)) / (game.paddle.width / 2);
-                    const bounceAngle = hitPos * Math.PI / 3;
+                        game.ball.dy = -game.ball.dy;
 
-                    game.ball.dx = game.ball.speed * Math.sin(bounceAngle);
-                    game.ball.dy = -Math.abs(game.ball.speed * Math.cos(bounceAngle));
+                        // Adjust horizontal direction based on hit position
+                        const hitPos = game.ball.x - (game.paddle.x + game.paddle.width / 2);
+                        if (Math.abs(hitPos) > game.paddle.width / 4) {
+                            game.ball.dx = hitPos > 0 ? 1 : -1;
+                        }
 
-                    game.bounces++;
-                    bounceCountEl.textContent = game.bounces;
-                }
+                        game.bounces++;
+                        bounceCountEl.textContent = game.bounces;
+                    }
 
-                // Ball falls below paddle - reset
-                if (game.ball.y - game.ball.radius > canvas.height) {
-                    game.ball.x = canvas.width / 2;
-                    game.ball.y = canvas.height / 2;
-                    game.ball.dx = 4;
-                    game.ball.dy = -4;
+                    // Ball falls below paddle - reset
+                    if (game.ball.y >= ROWS) {
+                        game.ball.x = Math.floor(COLS / 2);
+                        game.ball.y = Math.floor(ROWS / 2);
+                        game.ball.dx = 1;
+                        game.ball.dy = -1;
+                    }
                 }
             }
 
-            // Render game
+            // Render game using TEXT (PRETEXT technique)
             function render() {
-                // Clear canvas with white background
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const grid = createGrid();
 
-                // Draw background pattern using U+25A0 (■)
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                ctx.font = '20px monospace';
-                const gridSize = 30;
-                for (let y = 0; y < canvas.height; y += gridSize) {
-                    for (let x = 0; x < canvas.width; x += gridSize) {
-                        ctx.fillText('■', x, y);
+                // Draw walls (darker border)
+                for (let x = 0; x < COLS; x++) {
+                    grid[0][x] = '▓';  // Top wall
+                }
+                for (let y = 0; y < ROWS; y++) {
+                    grid[y][0] = '▓';  // Left wall
+                    grid[y][COLS - 1] = '▓';  // Right wall
+                }
+
+                // Draw paddle (horizontal line)
+                const paddleY = game.paddle.y;
+                for (let x = 0; x < game.paddle.width; x++) {
+                    const px = game.paddle.x + x;
+                    if (px >= 0 && px < COLS && paddleY >= 0 && paddleY < ROWS) {
+                        grid[paddleY][px] = '━';  // Horizontal line
                     }
                 }
 
-                // Draw paddle using horizontal line
-                ctx.fillStyle = 'black';
-                ctx.fillRect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height);
+                // Draw ball (U+25CF - Black Circle)
+                const bx = Math.floor(game.ball.x);
+                const by = Math.floor(game.ball.y);
+                if (bx >= 0 && bx < COLS && by >= 0 && by < ROWS) {
+                    grid[by][bx] = '●';  // U+25CF
+                }
 
-                // Draw ball using U+25CF (●)
-                ctx.fillStyle = 'black';
-                ctx.font = 'bold 24px monospace';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('●', game.ball.x, game.ball.y);
+                // Convert grid to text and render
+                const text = grid.map(row => row.join('')).join('\n');
+                display.textContent = text;
             }
 
-            // Game loop
+            // Game loop using requestAnimationFrame (60fps)
             function gameLoop() {
                 update();
                 render();
@@ -245,7 +267,6 @@
             }
 
             // Start game
-            init();
             gameLoop();
         }
     </script>

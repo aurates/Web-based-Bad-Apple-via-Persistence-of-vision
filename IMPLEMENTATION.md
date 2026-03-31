@@ -1,5 +1,45 @@
 # Implementation Documentation
 
+## Pretext Features Used
+
+Based on the Pretext demos listed in the project requirements, here's an analysis of which features are used in this implementation:
+
+### Features Currently Used
+
+**None of the advanced Pretext demo features are currently used.**
+
+The current implementation uses only the **basic Pretext API**:
+- `prepare()` - Text measurement and analysis
+- `layout()` - Fast arithmetic-only dimension calculation
+
+### Features NOT Used (from Pretext demos)
+
+The following advanced features from Pretext demos are **NOT** used in this implementation:
+
+1. **Accordion** - No expand/collapse sections with calculated text heights
+2. **Bubbles** - No tight multiline message bubbles with optimized line counts
+3. **Dynamic Layout** - No fixed-height editorial spread with obstacle-aware routing
+4. **Variable Typographic ASCII** - No particle-driven ASCII art comparing proportional vs monospace
+5. **Editorial Engine** - No animated orbs, live text reflow, pull quotes, or multi-column flow
+6. **Justification Comparison** - No CSS justification, greedy hyphenation, or Knuth-Plass layout
+7. **Rich Text** - No rich inline text, code spans, links, chips, or pills
+8. **Masonry** - No text-card occlusion or height prediction
+
+### Current Implementation Scope
+
+This implementation is a **simple demonstration** that:
+- Uses basic `prepare()` for text measurement
+- Uses basic `layout()` for dimension calculation
+- Displays performance metrics
+- Renders a text-based Breakout game
+
+The implementation could be enhanced to use advanced Pretext features like:
+- **Dynamic Layout**: Obstacle-aware text routing around game elements
+- **Rich Text**: Mixed formatting for game elements and UI
+- **Masonry**: Layout prediction for multi-section game UI
+
+---
+
 ## Overview
 This document explains how the POV Breakout demo was implemented as a **proper demonstration of the Pretext library** - a high-performance text measurement and layout library by Cheng Lou.
 

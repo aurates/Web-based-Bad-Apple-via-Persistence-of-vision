@@ -38,8 +38,8 @@
         }
 
         #gameContainer {
-            width: 90vw;
-            height: 90vh;
+            width: 98vw;
+            height: 98vh;
             margin: 0 auto;
             position: relative;
             border: 2px solid black;
@@ -59,8 +59,8 @@
         }
 
         #scoreContainer {
-            width: 90vw;
-            height: calc(10vh - 2px);
+            width: 98vw;
+            height: calc(2vh - 2px);
             margin: 0 auto;
             border: 2px solid black;
             border-top: none;
@@ -74,7 +74,7 @@
         }
 
         #divider {
-            width: 90vw;
+            width: 98vw;
             height: 2px;
             margin: 0 auto;
             background: black;
@@ -207,16 +207,6 @@
                     lines.push(line);
                 }
 
-                // Add game instructions
-                lines.push('');
-                lines.push('Use Arrow Keys ← → to move the paddle');
-                lines.push('Bounce the ball ● back up to keep playing!');
-                lines.push('');
-                lines.push('This demo uses Pretext library to:');
-                lines.push('1. measure() text WITHOUT touching DOM (no reflow!)');
-                lines.push('2. layout() calculates dimensions using pure arithmetic');
-                lines.push('3. Shows prepare() and layout() performance metrics below');
-
                 return lines.join('\n');
             }
 
@@ -232,8 +222,8 @@
                     game.paddlePos.col += 1;
                 }
 
-                // Move ball every other frame
-                if (game.frame % 2 === 0) {
+                // Move ball every 4 frames (50% slower than every 2 frames)
+                if (game.frame % 4 === 0) {
                     game.ballPos.row += game.ballVel.row;
                     game.ballPos.col += game.ballVel.col;
 

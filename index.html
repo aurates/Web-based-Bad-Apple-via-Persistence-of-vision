@@ -238,11 +238,29 @@
         // Dynamic grid dimensions (calculated based on container size)
         let ROWS = 25;
         let COLS = 80;
+        const textMeasureCanvas = document.createElement('canvas');
+        const textMeasureContext = textMeasureCanvas.getContext('2d');
+
+        function getCharacterMetrics() {
+            const textStyles = window.getComputedStyle(textDisplay);
+            const font = textStyles.font || `${textStyles.fontSize} ${textStyles.fontFamily}`;
+            if (textMeasureContext) {
+                textMeasureContext.font = font;
+            }
+
+            const measuredCharWidth = textMeasureContext ? textMeasureContext.measureText('■').width : 9.6;
+            const lineHeight = parseFloat(textStyles.lineHeight);
+            const fallbackLineHeight = parseFloat(textStyles.fontSize) * 1.5;
+
+            return {
+                charWidth: Math.max(1, measuredCharWidth),
+                charHeight: Math.max(1, Number.isFinite(lineHeight) ? lineHeight : fallbackLineHeight)
+            };
+        }
 
         // Calculate grid dimensions from container size
         function updateGridDimensions() {
-            const charWidth = 9.6; // Approximate width of monospace char at 12px
-            const charHeight = 18; // Line height
+            const { charWidth, charHeight } = getCharacterMetrics();
 
             COLS = Math.floor(container.clientWidth / charWidth);
             ROWS = Math.floor(container.clientHeight / charHeight);

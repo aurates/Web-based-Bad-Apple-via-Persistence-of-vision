@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POV Breakout Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: monospace;
+            background: white;
+            color: black;
+        }
+
+        #mobileWarning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            color: black;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+
+        #gameContainer {
+            width: 90vw;
+            height: 90vh;
+            margin: 0 auto;
+            position: relative;
+            border: 2px solid black;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
+
+        #scoreContainer {
+            width: 90vw;
+            height: calc(10vh - 2px);
+            margin: 0 auto;
+            border: 2px solid black;
+            border-top: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background: white;
+            color: black;
+        }
+
+        #divider {
+            width: 90vw;
+            height: 2px;
+            margin: 0 auto;
+            background: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="mobileWarning">
+        PC browser only. This game is not available on mobile devices.
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+    <div id="divider"></div>
+    <div id="scoreContainer">
+        Bounces: <span id="bounceCount">0</span>
+    </div>
+
+    <script>
+        // Mobile detection
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.innerWidth <= 768) ||
+                   ('ontouchstart' in window);
+        }
+
+        if (isMobile()) {
+            document.getElementById('mobileWarning').style.display = 'flex';
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('divider').style.display = 'none';
+            document.getElementById('scoreContainer').style.display = 'none';
+        } else {
+            // Game implementation
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const bounceCountEl = document.getElementById('bounceCount');
+
+            // Set canvas resolution
+            function resizeCanvas() {
+                const container = document.getElementById('gameContainer');
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Game state
+            const game = {
+                paddle: {
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 15,
+                    speed: 8
+                },
+                ball: {
+                    x: 0,
+                    y: 0,
+                    radius: 12,
+                    dx: 4,
+                    dy: -4,
+                    speed: 4
+                },
+                bounces: 0,
+                keys: {
+                    left: false,
+                    right: false
+                }
+            };
+
+            // Initialize positions
+            function init() {
+                game.paddle.x = canvas.width / 2 - game.paddle.width / 2;
+                game.paddle.y = canvas.height - game.paddle.height - 20;
+                game.ball.x = canvas.width / 2;
+                game.ball.y = canvas.height / 2;
+            }
+
+            // Keyboard input
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') game.keys.left = true;
+                if (e.key === 'ArrowRight') game.keys.right = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowLeft') game.keys.left = false;
+                if (e.key === 'ArrowRight') game.keys.right = false;
+            });
+
+            // Update game state
+            function update() {
+                // Move paddle
+                if (game.keys.left && game.paddle.x > 0) {
+                    game.paddle.x -= game.paddle.speed;
+                }
+                if (game.keys.right && game.paddle.x < canvas.width - game.paddle.width) {
+                    game.paddle.x += game.paddle.speed;
+                }
+
+                // Move ball
+                game.ball.x += game.ball.dx;
+                game.ball.y += game.ball.dy;
+
+                // Wall collision - left and right
+                if (game.ball.x - game.ball.radius < 0 || game.ball.x + game.ball.radius > canvas.width) {
+                    game.ball.dx = -game.ball.dx;
+                }
+
+                // Wall collision - top
+                if (game.ball.y - game.ball.radius < 0) {
+                    game.ball.dy = -game.ball.dy;
+                }
+
+                // Paddle collision
+                if (game.ball.y + game.ball.radius >= game.paddle.y &&
+                    game.ball.y + game.ball.radius <= game.paddle.y + game.paddle.height &&
+                    game.ball.x >= game.paddle.x &&
+                    game.ball.x <= game.paddle.x + game.paddle.width &&
+                    game.ball.dy > 0) {
+
+                    // Calculate bounce angle based on hit position
+                    const hitPos = (game.ball.x - (game.paddle.x + game.paddle.width / 2)) / (game.paddle.width / 2);
+                    const bounceAngle = hitPos * Math.PI / 3;
+
+                    game.ball.dx = game.ball.speed * Math.sin(bounceAngle);
+                    game.ball.dy = -Math.abs(game.ball.speed * Math.cos(bounceAngle));
+
+                    game.bounces++;
+                    bounceCountEl.textContent = game.bounces;
+                }
+
+                // Ball falls below paddle - reset
+                if (game.ball.y - game.ball.radius > canvas.height) {
+                    game.ball.x = canvas.width / 2;
+                    game.ball.y = canvas.height / 2;
+                    game.ball.dx = 4;
+                    game.ball.dy = -4;
+                }
+            }
+
+            // Render game
+            function render() {
+                // Clear canvas with white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw background pattern using U+25A0 (■)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.font = '20px monospace';
+                const gridSize = 30;
+                for (let y = 0; y < canvas.height; y += gridSize) {
+                    for (let x = 0; x < canvas.width; x += gridSize) {
+                        ctx.fillText('■', x, y);
+                    }
+                }
+
+                // Draw paddle using horizontal line
+                ctx.fillStyle = 'black';
+                ctx.fillRect(game.paddle.x, game.paddle.y, game.paddle.width, game.paddle.height);
+
+                // Draw ball using U+25CF (●)
+                ctx.fillStyle = 'black';
+                ctx.font = 'bold 24px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('●', game.ball.x, game.ball.y);
+            }
+
+            // Game loop
+            function gameLoop() {
+                update();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+
+            // Start game
+            init();
+            gameLoop();
+        }
+    </script>
+</body>
+</html>

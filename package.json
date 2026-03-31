@@ -1,0 +1,17 @@
+{
+  "name": "pos-breakout",
+  "version": "1.0.0",
+  "description": "POV Breakout - Demonstrating Pretext text measurement library",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.3"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

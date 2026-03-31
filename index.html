@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pretext Demo - Text Measurement Performance</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: monospace;
+            background: white;
+            color: black;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #mobileWarning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            color: black;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+
+        #gameContainer {
+            width: 800px;
+            height: 600px;
+            min-width: 400px;
+            min-height: 300px;
+            max-width: 95vw;
+            max-height: calc(100vh - 80px);
+            margin: 20px auto 0 auto;
+            position: relative;
+            border: 2px solid black;
+            overflow: hidden;
+            background: white;
+            resize: none;
+            flex-shrink: 0;
+        }
+
+        #resizeHandle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: nwse-resize;
+            background: linear-gradient(135deg, transparent 0%, transparent 50%, black 50%, black 100%);
+            z-index: 1000;
+        }
+
+        #resizeHandle:hover {
+            background: linear-gradient(135deg, transparent 0%, transparent 50%, #333 50%, #333 100%);
+        }
+
+        #textDisplay {
+            width: 100%;
+            height: 100%;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow: hidden;
+        }
+
+        #scoreContainer {
+            width: 100vw;
+            height: 60px;
+            margin-top: auto;
+            border-top: 2px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            font-size: 14px;
+            background: white;
+            color: black;
+            padding: 0 20px;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        #divider {
+            display: none;
+        }
+
+        .metric {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="mobileWarning">
+        PC browser only. This demo is not available on mobile devices.
+    </div>
+
+    <div id="gameContainer">
+        <div id="textDisplay"></div>
+        <div id="resizeHandle"></div>
+    </div>
+    <div id="divider"></div>
+    <div id="scoreContainer">
+        <div class="metric">
+            <span class="metric-label">Bounces</span>
+            <span class="metric-value" id="bounceCount">0</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Pretext prepare() time</span>
+            <span class="metric-value" id="prepareTime">0ms</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Pretext layout() time</span>
+            <span class="metric-value" id="layoutTime">0μs</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Text height</span>
+            <span class="metric-value" id="textHeight">0px</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { prepare, layout } from '@chenglou/pretext';
+
+        // Mobile detection
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.innerWidth <= 768) ||
+                   ('ontouchstart' in window);
+        }
+
+        if (isMobile()) {
+            document.getElementById('mobileWarning').style.display = 'flex';
+            document.getElementById('gameContainer').style.display = 'none';
+            document.getElementById('divider').style.display = 'none';
+            document.getElementById('scoreContainer').style.display = 'none';
+        } else {
+            // PRETEXT DEMO - Using the actual Pretext library for text measurement
+            const textDisplay = document.getElementById('textDisplay');
+            const bounceCountEl = document.getElementById('bounceCount');
+            const prepareTimeEl = document.getElementById('prepareTime');
+            const layoutTimeEl = document.getElementById('layoutTime');
+            const textHeightEl = document.getElementById('textHeight');
+            const container = document.getElementById('gameContainer');
+            const resizeHandle = document.getElementById('resizeHandle');
+
+            // Dynamic layout state
+            let isDragging = false;
+            let dragStartX = 0;
+            let dragStartY = 0;
+            let containerStartWidth = 0;
+            let containerStartHeight = 0;
+
+            // Dynamic grid dimensions (calculated based on container size)
+            let ROWS = 25;
+            let COLS = 80;
+
+            // Calculate grid dimensions from container size
+            function updateGridDimensions() {
+                const charWidth = 9.6; // Approximate width of monospace char at 12px
+                const charHeight = 18; // Line height
+
+                COLS = Math.floor((container.clientWidth - 20) / charWidth);
+                ROWS = Math.floor((container.clientHeight - 20) / charHeight);
+
+                // Ensure minimum dimensions
+                COLS = Math.max(40, COLS);
+                ROWS = Math.max(15, ROWS);
+
+                // Reset game positions to be within new bounds
+                if (game.ballPos.col >= COLS - 2) {
+                    game.ballPos.col = Math.floor(COLS / 2);
+                }
+                if (game.ballPos.row >= ROWS) {
+                    game.ballPos.row = Math.floor(ROWS / 2);
+                }
+                if (game.paddlePos.col >= COLS - game.paddleWidth - 1) {
+                    game.paddlePos.col = Math.max(1, COLS - game.paddleWidth - 1);
+                }
+                if (game.paddlePos.row >= ROWS - 1) {
+                    game.paddlePos.row = ROWS - 5;
+                }
+            }
+
+            // Initial grid calculation
+            updateGridDimensions();
+
+            // Game state
+            const game = {
+                bounces: 0,
+                ballPos: { row: 5, col: Math.floor(COLS / 2) },
+                paddlePos: { row: ROWS - 5, col: Math.floor(COLS / 2) - 5 },
+                ballVel: { row: 1, col: 1 },
+                paddleWidth: 10,
+                keys: { left: false, right: false },
+                frame: 0,
+                preparedText: null,
+                lastPrepareTime: 0,
+                lastLayoutTime: 0
+            };
+
+            // Resize handle drag handlers
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                containerStartWidth = container.clientWidth;
+                containerStartHeight = container.clientHeight;
+                e.preventDefault();
+                e.stopPropagation();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const deltaX = e.clientX - dragStartX;
+                const deltaY = e.clientY - dragStartY;
+
+                let newWidth = containerStartWidth + deltaX;
+                let newHeight = containerStartHeight + deltaY;
+
+                // Apply constraints
+                newWidth = Math.max(400, Math.min(window.innerWidth * 0.95, newWidth));
+                newHeight = Math.max(300, Math.min(window.innerHeight - 80, newHeight));
+
+                // Update container size
+                container.style.width = newWidth + 'px';
+                container.style.height = newHeight + 'px';
+
+                // Recalculate grid dimensions using Pretext principles
+                updateGridDimensions();
+
+                e.preventDefault();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                }
+            });
+
+            // Keyboard input
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') game.keys.left = true;
+                if (e.key === 'ArrowRight') game.keys.right = true;
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowLeft') game.keys.left = false;
+                if (e.key === 'ArrowRight') game.keys.right = false;
+            });
+
+            // Generate game text content
+            function generateGameText() {
+                const lines = [];
+
+                // Create the game field
+                for (let r = 0; r < ROWS; r++) {
+                    let line = '';
+                    for (let c = 0; c < COLS; c++) {
+                        // Walls
+                        if (r === 0 || c === 0 || c === COLS - 1) {
+                            line += '▓';
+                        }
+                        // Ball
+                        else if (r === Math.floor(game.ballPos.row) && c === Math.floor(game.ballPos.col)) {
+                            line += '●';
+                        }
+                        // Paddle
+                        else if (r === game.paddlePos.row &&
+                                 c >= game.paddlePos.col &&
+                                 c < game.paddlePos.col + game.paddleWidth) {
+                            line += '━';
+                        }
+                        // Background
+                        else {
+                            line += '■';
+                        }
+                    }
+                    lines.push(line);
+                }
+
+                return lines.join('\n');
+            }
+
+            // Update game state
+            function update() {
+                game.frame++;
+
+                // Move paddle
+                if (game.keys.left && game.paddlePos.col > 1) {
+                    game.paddlePos.col -= 1;
+                }
+                if (game.keys.right && game.paddlePos.col < COLS - game.paddleWidth - 1) {
+                    game.paddlePos.col += 1;
+                }
+
+                // Move ball every 4 frames (50% slower than every 2 frames)
+                if (game.frame % 4 === 0) {
+                    game.ballPos.row += game.ballVel.row;
+                    game.ballPos.col += game.ballVel.col;
+
+                    // Wall collisions
+                    if (game.ballPos.col <= 1 || game.ballPos.col >= COLS - 2) {
+                        game.ballVel.col = -game.ballVel.col;
+                        game.ballPos.col = Math.max(1, Math.min(COLS - 2, game.ballPos.col));
+                    }
+
+                    // Top wall
+                    if (game.ballPos.row <= 1) {
+                        game.ballVel.row = -game.ballVel.row;
+                        game.ballPos.row = 1;
+                    }
+
+                    // Paddle collision
+                    if (Math.floor(game.ballPos.row) === game.paddlePos.row - 1 &&
+                        Math.floor(game.ballPos.col) >= game.paddlePos.col &&
+                        Math.floor(game.ballPos.col) < game.paddlePos.col + game.paddleWidth &&
+                        game.ballVel.row > 0) {
+
+                        game.ballVel.row = -game.ballVel.row;
+
+                        // Adjust horizontal direction based on hit position
+                        const hitPos = game.ballPos.col - (game.paddlePos.col + game.paddleWidth / 2);
+                        if (Math.abs(hitPos) > game.paddleWidth / 4) {
+                            game.ballVel.col = hitPos > 0 ? 1 : -1;
+                        }
+
+                        game.bounces++;
+                        bounceCountEl.textContent = game.bounces;
+                    }
+
+                    // Ball falls below - reset
+                    if (game.ballPos.row >= ROWS) {
+                        game.ballPos = { row: 5, col: Math.floor(COLS / 2) };
+                        game.ballVel = { row: 1, col: 1 };
+                    }
+                }
+            }
+
+            // Render using Pretext
+            function render() {
+                const gameText = generateGameText();
+
+                // Use Pretext to prepare and measure the text
+                // This demonstrates Pretext's core value: fast text measurement without DOM
+
+                // PREPARE: One-time text analysis (normalization, segmentation, measurement)
+                const prepareStart = performance.now();
+                const prepared = prepare(gameText, '12px monospace', { whiteSpace: 'pre-wrap' });
+                const prepareEnd = performance.now();
+                const prepareTime = prepareEnd - prepareStart;
+                game.lastPrepareTime = prepareTime;
+
+                // LAYOUT: Fast arithmetic-only dimension calculation
+                const layoutStart = performance.now();
+                const containerWidth = container.clientWidth - 20; // Account for padding
+                const { height, lineCount } = layout(prepared, containerWidth, 18); // 18px line height (1.5 * 12px)
+                const layoutEnd = performance.now();
+                const layoutTime = layoutEnd - layoutStart;
+                game.lastLayoutTime = layoutTime;
+
+                // Update the display
+                textDisplay.textContent = gameText;
+
+                // Update metrics (throttled updates for readability)
+                if (game.frame % 30 === 0) {
+                    prepareTimeEl.textContent = prepareTime.toFixed(3) + 'ms';
+                    layoutTimeEl.textContent = (layoutTime * 1000).toFixed(1) + 'μs';
+                    textHeightEl.textContent = Math.round(height) + 'px';
+                }
+            }
+
+            // Game loop
+            function gameLoop() {
+                update();
+                render();
+                requestAnimationFrame(gameLoop);
+            }
+
+            // Start
+            gameLoop();
+        }
+    </script>
+</body>
+</html>
